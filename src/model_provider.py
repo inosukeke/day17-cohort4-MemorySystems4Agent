@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 @dataclass
 class ProviderConfig:
-    """Student TODO: define the provider configuration shared by the agents.
+    """Provider configuration shared by the agents.
 
     Required providers for this lab:
     - openai
@@ -23,16 +23,46 @@ class ProviderConfig:
     base_url: str | None = None
 
 
-def normalize_provider(value: str) -> str:
-    """Student TODO: map aliases like `anthorpic` -> `anthropic`."""
+_PROVIDER_ALIASES = {
+    "openai": "openai",
+    "oai": "openai",
+    "gpt": "openai",
+    "chatgpt": "openai",
+    "custom": "custom",
+    "openai-compatible": "custom",
+    "openaicompatible": "custom",
+    "compatible": "custom",
+    "gemini": "gemini",
+    "google": "gemini",
+    "google-gemini": "gemini",
+    "googlegemini": "gemini",
+    "anthropic": "anthropic",
+    "anthorpic": "anthropic",
+    "claude": "anthropic",
+    "ollama": "ollama",
+    "local": "ollama",
+    "openrouter": "openrouter",
+    "open-router": "openrouter",
+    "openrouterai": "openrouter",
+    "router": "openrouter",
+}
 
-    raise NotImplementedError
+
+def normalize_provider(value: str) -> str:
+    """Map aliases like `anthorpic` -> `anthropic`."""
+
+    if not value:
+        raise ValueError("Provider value is empty.")
+
+    key = value.strip().lower().replace("_", "-").replace(" ", "")
+    if key not in _PROVIDER_ALIASES:
+        raise ValueError(f"Unsupported provider: {value!r}")
+    return _PROVIDER_ALIASES[key]
 
 
 def build_chat_model(config: ProviderConfig):
-    """Student TODO: instantiate the real chat model for the selected provider.
+    """Instantiate the real chat model for the selected provider.
 
-    Pseudocode:
     - `openai` -> `ChatOpenAI`
     - `custom` -> `ChatOpenAI` with `base_url`
     - `gemini` -> `ChatGoogleGenerativeAI`
@@ -41,4 +71,62 @@ def build_chat_model(config: ProviderConfig):
     - `openrouter` -> `ChatOpenRouter`
     """
 
-    raise NotImplementedError
+    provider = normalize_provider(config.provider)
+
+    if provider == "openai":
+        from langchain_openai import ChatOpenAI
+
+        return ChatOpenAI(
+            model=config.model_name,
+            temperature=config.temperature,
+            api_key=config.api_key,
+        )
+
+    if provider == "custom":
+        from langchain_openai import ChatOpenAI
+
+        return ChatOpenAI(
+            model=config.model_name,
+            temperature=config.temperature,
+            api_key=config.api_key or "not-needed",
+            base_url=config.base_url,
+        )
+
+    if provider == "gemini":
+        from langchain_google_genai import ChatGoogleGenerativeAI
+
+        return ChatGoogleGenerativeAI(
+            model=config.model_name,
+            temperature=config.temperature,
+            google_api_key=config.api_key,
+        )
+
+    if provider == "anthropic":
+        from langchain_anthropic import ChatAnthropic
+
+        return ChatAnthropic(
+            model=config.model_name,
+            temperature=config.temperature,
+            api_key=config.api_key,
+        )
+
+    if provider == "ollama":
+        from langchain_ollama import ChatOllama
+
+        return ChatOllama(
+            model=config.model_name,
+            temperature=config.temperature,
+            base_url=config.base_url or "http://localhost:11434",
+        )
+
+    if provider == "openrouter":
+        from langchain_openrouter import ChatOpenRouter
+
+        return ChatOpenRouter(
+            model=config.model_name,
+            temperature=config.temperature,
+            api_key=config.api_key,
+            base_url=config.base_url or "https://openrouter.ai/api/v1",
+        )
+
+    raise ValueError(f"Unsupported provider: {provider}")
